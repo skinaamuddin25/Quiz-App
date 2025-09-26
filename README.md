@@ -30,7 +30,7 @@ It's super easy because it's only one file!
 
 Clone the repository:
 
-git clone [Your-Repo-URL]
+git clone https://github.com/skinaamuddin25/Quiz-App.git
 
 Open the file:
 Just find the index.html file on your computer and double-click it. It will open instantly in your web browser! No need to install anything else.
