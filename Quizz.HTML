@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProSkill Quiz App</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font family -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght=100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb; /* Light background for professionalism */
+        }
+        /* Custom scrollbar for better look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .option-button.selected {
+            @apply ring-4 ring-offset-2 ring-indigo-500 border-indigo-600 shadow-md;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Application Container -->
+    <div id="app-container" class="w-full max-w-4xl bg-white shadow-2xl rounded-xl overflow-hidden transform transition-all duration-500">
+
+        <!-- Header -->
+        <header class="bg-indigo-600 p-4 text-white flex justify-between items-center shadow-lg">
+            <h1 class="text-2xl font-bold tracking-tight">ProSkill Quiz</h1>
+            <div id="user-info" class="flex items-center space-x-3 text-sm">
+                <!-- Static User Info for Front-End Demo -->
+                <p id="user-id-display" class="bg-indigo-700 py-1 px-3 rounded-full font-medium transition">User: Guest</p>
+                <button onclick="changeView('LEADERBOARD')" class="bg-indigo-700 hover:bg-indigo-500 transition px-4 py-2 rounded-lg font-semibold shadow-md">
+                    Leaderboard
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="content-area" class="p-6 md:p-10 min-h-[500px] flex flex-col justify-center items-center">
+            <!-- Content will be injected here (Category Selection, Quiz, Results, Leaderboard) -->
+            <div class="text-center">
+                <p class="text-xl font-medium text-gray-600">Loading Front-End Quiz Logic...</p>
+            </div>
+        </main>
+
+        <!-- Notification Message Box (for alerts/messages) -->
+        <div id="notification-box" class="fixed top-4 right-4 z-50 transition-all duration-300 transform opacity-0 translate-x-full">
+            <div class="bg-red-600 text-white p-3 rounded-lg shadow-xl max-w-xs" role="alert">
+                <p id="notification-text" class="font-medium"></p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Pure JavaScript Logic -->
+    <script>
+        // --- State Variables ---
+        let currentCategory = null;
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let timerInterval = null;
+        let timeLeft = 60; // seconds per question
+        let userName = 'Guest User';
+        let userId = 'static_frontend_user_001'; // Static ID for presentation purposes
+
+        // --- Mock Leaderboard Data (for presentation integrity) ---
+        // Scores are held in memory for the session only.
+        let leaderboardScores = [
+            { userId: 'leader_1', userName: 'Alice', score: 5, category: 'HTML Fundamentals', timestamp: Date.now() - 3600000 },
+            { userId: 'leader_2', userName: 'Bob', score: 4, category: 'CSS Styling', timestamp: Date.now() - 7200000 },
+            { userId: 'leader_3', userName: 'Charlie', score: 5, category: 'JavaScript Basics', timestamp: Date.now() - 1800000 },
+        ];
+
+
+        // Hardcoded Quiz Data
+        const quizData = {
+            "HTML Fundamentals": [
+                {
+                    question: "What does HTML stand for?",
+                    options: ["Hyper Text Markup Language", "High Tech Modern Language", "Hyperlink and Text Markup Logic", "Home Tool Markup Language"],
+                    correctAnswer: "Hyper Text Markup Language",
+                    time: 60
+                },
+                {
+                    question: "Which tag is used to define an image in HTML?",
+                    options: ["img", "picture", "image", "src"],
+                    correctAnswer: "img",
+                    time: 60
+                },
+                {
+                    question: "Which is the correct HTML element for the largest heading?",
+                    options: ["h1", "head", "h6", "heading"],
+                    correctAnswer: "h1",
+                    time: 60
+                },
+                {
+                    question: "How do you create an ordered list?",
+                    options: ["ol", "ul", "list", "dl"],
+                    correctAnswer: "ol",
+                    time: 60
+                },
+                {
+                    question: "Which HTML attribute is used to define inline styles?",
+                    options: ["class", "style", "font", "css"],
+                    correctAnswer: "style",
+                    time: 60
+                }
+            ],
+            "CSS Styling": [
+                {
+                    question: "Which CSS property is used to change the text color of an element?",
+                    options: ["color", "text-color", "fgcolor", "font-color"],
+                    correctAnswer: "color",
+                    time: 60
+                },
+                {
+                    question: "What does the 'C' in CSS stand for?",
+                    options: ["Creative", "Cascading", "Computer", "Colorful"],
+                    correctAnswer: "Cascading",
+                    time: 60
+                },
+                {
+                    question: "Which property is used to control the space between elements?",
+                    options: ["padding", "margin", "border", "spacing"],
+                    correctAnswer: "margin",
+                    time: 60
+                },
+                {
+                    question: "How do you select an element with the id 'header'?",
+                    options: [".header", "#header", "header", "*header"],
+                    correctAnswer: "#header",
+                    time: 60
+                },
+                {
+                    question: "Which value is used to make an element occupy its full width?",
+                    options: ["width: auto;", "width: 100%;", "display: block;", "display: full;"],
+                    correctAnswer: "width: 100%;",
+                    time: 60
+                }
+            ],
+            "JavaScript Basics": [
+                {
+                    question: "Which keyword is used to declare a variable in JavaScript?",
+                    options: ["var", "let", "const", "All of the above"],
+                    correctAnswer: "All of the above",
+                    time: 60
+                },
+                {
+                    question: "How do you write 'Hello World' in an alert box?",
+                    options: ["alert('Hello World');", "msg('Hello World');", "prompt('Hello World');", "console.log('Hello World');"],
+                    correctAnswer: "alert('Hello World');",
+                    time: 60
+                },
+                {
+                    question: "What is the correct syntax for an IF statement?",
+                    options: ["if i = 5 then", "if (i == 5)", "if i == 5", "if {i == 5}"],
+                    correctAnswer: "if (i == 5)",
+                    time: 60
+                },
+                {
+                    question: "Which operator is used for strict equality comparison?",
+                    options: ["==", "=", "===", "!="],
+                    correctAnswer: "===",
+                    time: 60
+                },
+                {
+                    question: "How does a FOR loop start?",
+                    options: ["for (i <= 5; i++)", "for (i = 0; i <= 5; i++)", "for i = 1 to 5", "for (i = 0; i <= 5)"],
+                    correctAnswer: "for (i = 0; i <= 5; i++)",
+                    time: 60
+                }
+            ]
+        };
+
+        // --- Utility Functions ---
+
+        /** Shows a temporary notification message */
+        window.showNotification = (message, isError = true) => {
+            const box = document.getElementById('notification-box');
+            const text = document.getElementById('notification-text');
+            box.classList.remove('bg-red-600', 'bg-green-600');
+            box.classList.add(isError ? 'bg-red-600' : 'bg-green-600');
+            text.textContent = message;
+            box.classList.remove('opacity-0', 'translate-x-full');
+            box.classList.add('opacity-100', 'translate-x-0');
+            
+            setTimeout(() => {
+                box.classList.remove('opacity-100', 'translate-x-0');
+                box.classList.add('opacity-0', 'translate-x-full');
+            }, 3000);
+        };
+
+        /** Copies the User ID to the clipboard (functionality removed but kept as stub) */
+        window.copyUserId = () => {
+            window.showNotification('This is a front-end demo, copying user ID is disabled.', true);
+        };
+
+        /** Shuffles an array */
+        const shuffleArray = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        };
+
+        // --- View Rendering Functions ---
+
+        /** Renders the Category Selection screen */
+        const renderCategorySelection = () => {
+            const contentArea = document.getElementById('content-area');
+            const categoryKeys = Object.keys(quizData);
+
+            let html = `
+                <div class="text-center mb-8">
+                    <h2 class="text-4xl font-extrabold text-gray-800 mb-2">Welcome, ${userName}!</h2>
+                    <p class="text-lg text-gray-500">Select a category to start your quiz and test your skills.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-2xl">
+            `;
+            
+            categoryKeys.forEach(category => {
+                html += `
+                    <button onclick="startQuiz('${category}')"
+                        class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.03] active:scale-100 border-b-4 border-indigo-700 hover:border-indigo-800">
+                        <span class="text-xl">${category}</span>
+                        <p class="text-sm opacity-90 mt-1">${quizData[category].length} Questions</p>
+                    </button>
+                `;
+            });
+
+            html += `</div>`;
+            contentArea.innerHTML = html;
+        };
+
+        /** Renders the current question and handles interaction */
+        const renderQuestion = () => {
+            const contentArea = document.getElementById('content-area');
+            const questionData = currentQuestions[currentQuestionIndex];
+            const totalQuestions = currentQuestions.length;
+            const questionNumber = currentQuestionIndex + 1;
+
+            if (!questionData) {
+                return renderResults();
+            }
+
+            // Shuffle options for better randomization
+            const options = [...questionData.options];
+            shuffleArray(options);
+            
+            let optionsHtml = '';
+            options.forEach((option, index) => {
+                optionsHtml += `
+                    <button data-option="${option}" onclick="selectAnswer(this)"
+                        class="option-button w-full text-left bg-gray-50 text-gray-700 border-2 border-gray-200 py-3 px-4 rounded-xl transition-all duration-200 hover:bg-indigo-50 hover:border-indigo-300 focus:outline-none focus:ring-0">
+                        ${String.fromCharCode(65 + index)}. ${option}
+                    </button>
+                `;
+            });
+
+            contentArea.innerHTML = `
+                <div class="w-full max-w-3xl">
+                    <!-- Progress and Timer Bar -->
+                    <div class="flex justify-between items-center mb-6 text-gray-500 font-medium">
+                        <p>Question <span class="font-bold text-indigo-600">${questionNumber}</span> of ${totalQuestions}</p>
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span id="timer-display" class="text-xl font-bold text-indigo-600">${timeLeft}s</span>
+                        </div>
+                    </div>
+
+                    <!-- Question Card -->
+                    <div class="bg-indigo-50 p-6 rounded-xl shadow-inner mb-8">
+                        <p class="text-2xl font-semibold text-gray-800">${questionData.question}</p>
+                    </div>
+
+                    <!-- Options Grid -->
+                    <div id="options-grid" class="space-y-4">
+                        ${optionsHtml}
+                    </div>
+
+                    <!-- Navigation Button -->
+                    <div class="mt-8 flex justify-end">
+                        <button id="next-button" onclick="nextQuestion()" disabled
+                            class="bg-gray-400 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition duration-300 opacity-70 cursor-not-allowed">
+                            Next Question
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            startTimer(questionData.time);
+        };
+
+        /** Renders the Results screen */
+        const renderResults = () => {
+            clearInterval(timerInterval);
+            const totalQuestions = currentQuestions.length;
+            const percentage = (score / totalQuestions) * 100;
+            let feedback = '';
+
+            if (percentage === 100) {
+                feedback = 'Outstanding! A perfect score. You are a master of this topic.';
+            } else if (percentage >= 70) {
+                feedback = 'Great job! You have a solid understanding of the material.';
+            } else if (percentage >= 40) {
+                feedback = 'Good effort. Keep practicing to improve your score.';
+            } else {
+                feedback = 'You might want to review the basics. Keep going!';
+            }
+
+            const contentArea = document.getElementById('content-area');
+            contentArea.innerHTML = `
+                <div class="text-center w-full max-w-lg p-8 bg-white rounded-xl shadow-2xl border-t-4 border-indigo-600">
+                    <svg class="mx-auto w-16 h-16 text-indigo-500 mb-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zm-2.5 12.5a.5.5 0 01-1 0 .5.5 0 011 0zm0-3a.5.5 0 01-1 0 .5.5 0 011 0zm7 3a.5.5 0 01-1 0 .5.5 0 011 0zm0-3a.5.5 0 01-1 0 .5.5 0 011 0zm-7-3a.5.5 0 01-1 0 .5.5 0 011 0zm7-3a.5.5 0 01-1 0 .5.5 0 011 0z"></path></svg>
+                    <h2 class="text-4xl font-extrabold text-gray-800 mb-3">Quiz Finished!</h2>
+                    <p class="text-xl text-gray-600 mb-6">${feedback}</p>
+                    
+                    <div class="my-6 space-y-3">
+                        <div class="text-2xl font-semibold text-indigo-600">
+                            Your Score: <span class="text-4xl font-extrabold">${score} / ${totalQuestions}</span>
+                        </div>
+                        <p class="text-lg text-gray-700">Category: ${currentCategory}</p>
+                    </div>
+
+                    <div class="flex flex-col space-y-4 pt-6 border-t border-gray-100">
+                        <button onclick="addMockScoreAndShowLeaderboard()"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition duration-300">
+                            Add Score to Leaderboard (Demo)
+                        </button>
+                        <button onclick="changeView('START')"
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-xl transition duration-300">
+                            Try Another Quiz
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+        
+        /** Renders the Leaderboard screen */
+        const renderLeaderboard = () => {
+            const contentArea = document.getElementById('content-area');
+            
+            // Sort mock scores
+            const sortedScores = leaderboardScores.sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                return a.timestamp - b.timestamp; // Tie-breaker: earlier time wins
+            });
+
+            let listHtml = '';
+            if (sortedScores.length > 0) {
+                sortedScores.forEach((s, index) => {
+                    // Check if this is the current user's score to highlight (using the static ID)
+                    const isCurrentUser = s.userId === userId;
+                    const rowClass = isCurrentUser ? 'bg-indigo-100 font-bold border-l-4 border-indigo-600' : 'bg-white hover:bg-gray-50';
+                    const displayUserName = isCurrentUser ? `${s.userName} (You)` : s.userName;
+
+                    listHtml += `
+                        <li class="p-4 flex justify-between items-center rounded-lg shadow-sm ${rowClass} transition duration-150">
+                            <span class="w-1/12 text-center text-lg">${index + 1}</span>
+                            <span class="w-4/12 truncate text-gray-800">${displayUserName}</span>
+                            <span class="w-3/12 text-center text-sm text-gray-500 truncate">${s.category}</span>
+                            <span class="w-2/12 text-right text-xl text-indigo-600">${s.score}</span>
+                            <span class="w-2/12 text-right text-xs text-gray-400">${new Date(s.timestamp).toLocaleDateString()}</span>
+                        </li>
+                    `;
+                });
+            } else {
+                listHtml = `<li class="text-center py-10 text-gray-500">No scores yet. Be the first to complete a quiz!</li>`;
+            }
+
+            contentArea.innerHTML = `
+                <div class="w-full max-w-4xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-4xl font-extrabold text-gray-800">Demo Leaderboard</h2>
+                        <button onclick="changeView('START')"
+                            class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-xl shadow-md transition duration-300">
+                            Back to Quizzes
+                        </button>
+                    </div>
+
+                    <!-- Leaderboard Header -->
+                    <ul class="flex justify-between items-center p-4 bg-gray-200 rounded-t-lg font-semibold text-gray-700 text-sm">
+                        <span class="w-1/12 text-center">Rank</span>
+                        <span class="w-4/12">Player</span>
+                        <span class="w-3/12 text-center">Category</span>
+                        <span class="w-2/12 text-right">Score</span>
+                        <span class="w-2/12 text-right">Date</span>
+                    </ul>
+
+                    <!-- Leaderboard List -->
+                    <ul class="space-y-2 max-h-[400px] overflow-y-auto rounded-b-lg">
+                        ${listHtml}
+                    </ul>
+                </div>
+            `;
+        };
+
+        // --- Core Quiz Logic ---
+
+        /** Starts the quiz for a given category */
+        window.startQuiz = (category) => {
+            currentCategory = category;
+            
+            // Deep copy and shuffle the questions
+            currentQuestions = JSON.parse(JSON.stringify(quizData[category]));
+            shuffleArray(currentQuestions);
+
+            currentQuestionIndex = 0;
+            score = 0;
+            
+            renderQuestion();
+        };
+
+        /** Handles user selecting an answer option */
+        window.selectAnswer = (selectedButton) => {
+            // Disable all options after selection
+            const buttons = document.querySelectorAll('#options-grid .option-button');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.remove('hover:bg-indigo-50', 'hover:border-indigo-300');
+            });
+            
+            const selectedAnswer = selectedButton.getAttribute('data-option');
+            const questionData = currentQuestions[currentQuestionIndex];
+            const correctAnswer = questionData.correctAnswer;
+
+            const nextButton = document.getElementById('next-button');
+            nextButton.disabled = false;
+            nextButton.classList.replace('bg-gray-400', 'bg-indigo-600');
+            nextButton.classList.replace('opacity-70', 'opacity-100');
+            nextButton.classList.replace('cursor-not-allowed', 'cursor-pointer');
+            nextButton.classList.add('hover:bg-indigo-700', 'shadow-xl');
+
+            // Apply visual feedback
+            buttons.forEach(btn => {
+                const option = btn.getAttribute('data-option');
+                btn.classList.remove('option-button'); // Remove styling class
+                btn.classList.add('font-medium');
+                
+                if (option === correctAnswer) {
+                    btn.classList.add('bg-green-100', 'border-green-600', 'ring-2', 'ring-green-400');
+                } else if (option === selectedAnswer) {
+                    btn.classList.add('bg-red-100', 'border-red-600', 'ring-2', 'ring-red-400', 'line-through', 'opacity-80');
+                } else {
+                    btn.classList.add('bg-gray-100', 'border-gray-200', 'opacity-50');
+                }
+            });
+
+            // Update score
+            if (selectedAnswer === correctAnswer) {
+                score++;
+            }
+
+            // Stop the timer immediately after answering
+            clearInterval(timerInterval);
+        };
+        
+        /** Moves to the next question or results */
+        window.nextQuestion = () => {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < currentQuestions.length) {
+                renderQuestion();
+            } else {
+                renderResults();
+            }
+        };
+
+        /** Manages the quiz timer */
+        const startTimer = (initialTime) => {
+            clearInterval(timerInterval);
+            timeLeft = initialTime;
+            const timerDisplay = document.getElementById('timer-display');
+            if (timerDisplay) timerDisplay.textContent = `${timeLeft}s`;
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                if (timerDisplay) timerDisplay.textContent = `${timeLeft}s`;
+
+                if (timeLeft <= 10 && timerDisplay) {
+                    timerDisplay.classList.add('text-red-500');
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    // Automatically mark as unanswered (incorrect) and move on
+                    window.selectAnswer({ getAttribute: () => 'TIMEOUT' }); 
+                    setTimeout(nextQuestion, 1000); // Give 1 second to see the result
+                }
+            }, 1000);
+        };
+
+        // --- Demo Leaderboard Logic (In-Memory) ---
+        
+        /** Adds the current score to the in-memory leaderboard array */
+        window.addMockScoreAndShowLeaderboard = () => {
+            const newScore = {
+                userId: userId,
+                userName: userName,
+                score: score,
+                category: currentCategory,
+                totalQuestions: currentQuestions.length,
+                timestamp: Date.now()
+            };
+            
+            // Overwrite the previous score of the static user if it exists, or push a new one.
+            const existingIndex = leaderboardScores.findIndex(s => s.userId === userId);
+            if (existingIndex > -1) {
+                leaderboardScores[existingIndex] = newScore;
+            } else {
+                leaderboardScores.push(newScore);
+            }
+            
+            window.showNotification("Score added to in-memory Leaderboard for presentation!", false);
+            changeView('LEADERBOARD');
+        };
+
+
+        // --- App State Management ---
+
+        /** Changes the view based on the state */
+        window.changeView = (view) => {
+            switch (view) {
+                case 'START':
+                    renderCategorySelection();
+                    break;
+                case 'LEADERBOARD':
+                    renderLeaderboard();
+                    break;
+                case 'QUIZ':
+                    // Handled by startQuiz and nextQuestion
+                    break;
+                case 'RESULTS':
+                    renderResults();
+                    break;
+            }
+        };
+
+        // --- Initialization ---
+
+        /** Initializes the application (Front-End Only) */
+        const initializeApp = () => {
+            // No external API calls needed, directly start the application.
+            changeView('START');
+        };
+
+        // Start initialization when the module loads
+        initializeApp();
+    </script>
+</body>
+</html>
